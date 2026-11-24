@@ -1,12 +1,13 @@
 # Speedrun Ethereum Journey
 
-Repo chung cho ba challenge, moi challenge giu Yarn workspace va lockfile rieng.
+Repo chung cho cac challenge, moi challenge giu Yarn workspace va lockfile rieng.
 
 | Challenge | Vercel project | Root Directory |
 | --- | --- | --- |
 | Crowdfunding | sre-crowdfunding | `challenge-crowdfunding/packages/nextjs` |
 | Tokenization | sre-tokenization | `challenge-tokenization/packages/nextjs` |
 | Token Vendor | sre-token-vendor | `challenge-token-vendor/packages/nextjs` |
+| DEX (challenge 4) | sre-dex | `challenge-dex/packages/nextjs` |
 
 ## Chay local
 
@@ -80,6 +81,38 @@ Tao project Vercel rieng voi Root Directory `challenge-crowdfunding/packages/nex
 `NEXT_PUBLIC_TARGET_NETWORK=sepolia`; khong doi Root Directory cua project Tokenization.
 De submit challenge 1, dung URL Vercel moi va URL Etherscan cua **CrowdFund** tren Sepolia.
 Dia chi 31337 trong ABI chi danh cho local, khong dung de submit.
+
+## DEX (challenge 4)
+
+Hoan thien swap ETH/BAL voi phi 0.3%, approve, them/rut thanh khoan va getLiquidity.
+Contract co bao ve reentrancy, kiem tra pool, so du, allowance va LP shares.
+Balloons.sol duoc giu nguyen theo de bai.
+
+Chay local trong `challenge-dex`: `yarn chain`, `yarn deploy`, `yarn start` (cac terminal rieng).
+Deploy script khoi tao pool 5 ETH + 5 BAL tren local; tren Sepolia chi dung 0.005 ETH test + 5 BAL.
+Co the doi `DEX_INITIAL_ETH` va `DEX_INITIAL_TOKENS` trong `packages/hardhat/.env`.
+Gui them ETH Sepolia cho deployer de du ca thanh khoan ban dau va gas; khong can mua ETH mainnet.
+Neu approve/init bi gian doan, chay lai deploy khong kem `--reset` de tiep tuc.
+
+Dung lai vi deployer hien co, chay tu thu muc goc repo:
+
+```powershell
+cd challenge-dex
+Copy-Item ..\challenge-crowdfunding\packages\hardhat\.env .\packages\hardhat\.env
+yarn deploy --network sepolia
+yarn verify --network sepolia
+```
+
+Nhap mat khau deployer trong terminal. Tuy chon dat `FRONTEND_ADDRESS` la dia chi MetaMask
+de nhan 10 BAL khi deploy moi; neu de trong, nguoi dung van co the mua BAL bang ETH test.
+LP shares cua thanh khoan khoi tao thuoc deployer; vi MetaMask khac co the deposit de co LP shares rieng.
+
+Vercel: tao project rieng, Root Directory `challenge-dex/packages/nextjs`, Next.js, Node 22.x,
+bat include source files outside Root Directory, bien `NEXT_PUBLIC_TARGET_NETWORK=sepolia`.
+Commit file `deployedContracts.ts` va deployment Sepolia duoc sinh ra sau deploy truoc khi deploy frontend.
+Frontend production mac dinh Sepolia; local mac dinh Hardhat, co the ghi de bang bien mang tren.
+Trong trang DEX: mua BAL, approve DEX, swap BAL ra ETH, deposit ETH/BAL va withdraw LP shares.
+Khi submit, dung URL Vercel rieng va Etherscan URL cua **DEX**, khong phai Balloons.
 
 ## Git migration backup
 
