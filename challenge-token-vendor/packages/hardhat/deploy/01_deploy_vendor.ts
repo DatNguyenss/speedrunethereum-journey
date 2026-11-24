@@ -53,22 +53,37 @@ export default deployScript(
         args: [yourToken.address],
       });
 
-      // Preserve inventory and ownership when rerunning an unchanged deployment.
-      if (!vendor.newlyDeployed) return;
-
-      // Transfer tokens to Vendor (seed inventory)
-      await env.execute(yourToken, {
-        functionName: "transfer",
-        args: [vendor.address, parseEther("1000")],
-        account: deployer,
+      // Resume a failed initial seed, but never top up an inventory already used for trading.
+      const deployerBalance = await env.read(yourToken, {
+        functionName: "balanceOf",
+        args: [deployer],
       });
-
-      // Make the UI wallet the owner (for withdraw(), etc). Defaults to deployer if unset.
-      await env.execute(vendor, {
-        functionName: "transferOwnership",
-        args: [recipientAddress],
-        account: deployer,
+      const vendorBalance = await env.read(yourToken, {
+        functionName: "balanceOf",
+        args: [vendor.address],
       });
+      if (deployerBalance === parseEther("1000") && vendorBalance === 0n) {
+        await env.execute(yourToken, {
+          functionName: "transfer",
+          args: [vendor.address, parseEther("1000")],
+          account: deployer,
+        });
+      }
+
+      // Resume ownership setup only while the deployer still owns the Vendor.
+      const currentOwner = await env.read(vendor, {
+        functionName: "owner",
+      });
+      if (
+        currentOwner.toLowerCase() === deployer.toLowerCase() &&
+        currentOwner.toLowerCase() !== recipientAddress.toLowerCase()
+      ) {
+        await env.execute(vendor, {
+          functionName: "transferOwnership",
+          args: [recipientAddress],
+          account: deployer,
+        });
+      }
     }
   },
   // Tags are useful if you have multiple deploy files and only want to run one of them.
