@@ -58,6 +58,33 @@ describe("🚩 Challenge: 🎟 Tokenization 🤓", function () {
         const token = await myContract.tokenOfOwnerByIndex(owner.address, startingBalance - 1n);
         expect(token).to.greaterThan(0);
       });
+
+      it("Should transfer ownership and update owner enumeration", async function () {
+        const [owner, recipient] = await ethers.getSigners();
+        const tokenId = await myContract.tokenOfOwnerByIndex(owner.address, 0n);
+        const balanceBefore = await myContract.balanceOf(owner.address);
+        const recipientBalanceBefore = await myContract.balanceOf(recipient.address);
+        const uriBefore = await myContract.tokenURI(tokenId);
+
+        await expect(myContract.transferFrom(owner.address, recipient.address, tokenId))
+          .to.emit(myContract, "Transfer")
+          .withArgs(owner.address, recipient.address, tokenId);
+
+        expect(await myContract.ownerOf(tokenId)).to.equal(recipient.address);
+        expect(await myContract.balanceOf(owner.address)).to.equal(balanceBefore - 1n);
+        expect(await myContract.balanceOf(recipient.address)).to.equal(recipientBalanceBefore + 1n);
+        expect(await myContract.tokenOfOwnerByIndex(recipient.address, recipientBalanceBefore)).to.equal(tokenId);
+        expect(await myContract.tokenURI(tokenId)).to.equal(uriBefore);
+      });
+
+      it("Should reject transfers by an account without approval", async function () {
+        const [owner, recipient, outsider] = await ethers.getSigners();
+        const tokenId = await myContract.tokenOfOwnerByIndex(recipient.address, 0n);
+
+        await expect(myContract.connect(outsider).transferFrom(recipient.address, owner.address, tokenId))
+          .to.be.revertedWithCustomError(myContract, "ERC721InsufficientApproval")
+          .withArgs(outsider.address, tokenId);
+      });
     });
   });
 });

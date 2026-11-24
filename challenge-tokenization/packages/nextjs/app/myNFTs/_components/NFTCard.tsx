@@ -1,11 +1,13 @@
 import { useState } from "react";
 import { Collectible } from "./MyHoldings";
 import { Address, AddressInput } from "@scaffold-ui/components";
+import { isAddress, zeroAddress } from "viem";
 import { useScaffoldWriteContract, useTargetNetwork } from "~~/hooks/scaffold-eth";
 
 export const NFTCard = ({ nft }: { nft: Collectible }) => {
   const { targetNetwork } = useTargetNetwork();
   const [transferToAddress, setTransferToAddress] = useState("");
+  const [isTransferring, setIsTransferring] = useState(false);
 
   const { writeContractAsync } = useScaffoldWriteContract({ contractName: "YourCollectible" });
 
@@ -47,18 +49,22 @@ export const NFTCard = ({ nft }: { nft: Collectible }) => {
         <div className="card-actions justify-end">
           <button
             className="btn btn-secondary btn-md px-8 tracking-wide"
-            onClick={() => {
+            disabled={isTransferring || !isAddress(transferToAddress) || transferToAddress === zeroAddress}
+            onClick={async () => {
+              setIsTransferring(true);
               try {
-                writeContractAsync({
+                await writeContractAsync({
                   functionName: "transferFrom",
                   args: [nft.owner, transferToAddress, BigInt(nft.id.toString())],
                 });
               } catch (err) {
                 console.error("Error calling transferFrom function", err);
+              } finally {
+                setIsTransferring(false);
               }
             }}
           >
-            Send
+            {isTransferring ? "Sending…" : "Send"}
           </button>
         </div>
       </div>
