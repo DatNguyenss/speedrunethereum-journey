@@ -7,7 +7,7 @@ import { GenericContractsDeclaration } from "~~/utils/scaffold-eth/contract";
 const deployedContracts = {
   31337: {
     CrowdFund: {
-      address: "0x9fe46736679d2d9a65f0992f2272de9f3c7fa6e0",
+      address: "0xb7f8bc63bbcad18155201308c8f3540b07f84f5e",
       abi: [
         {
           inputs: [
@@ -19,6 +19,53 @@ const deployedContracts = {
           ],
           stateMutability: "nonpayable",
           type: "constructor",
+        },
+        {
+          inputs: [],
+          name: "FundingClosed",
+          type: "error",
+        },
+        {
+          inputs: [],
+          name: "FundingCompleted",
+          type: "error",
+        },
+        {
+          inputs: [],
+          name: "NotOpenToWithdraw",
+          type: "error",
+        },
+        {
+          inputs: [
+            {
+              internalType: "uint256",
+              name: "deadline",
+              type: "uint256",
+            },
+            {
+              internalType: "uint256",
+              name: "currentTimestamp",
+              type: "uint256",
+            },
+          ],
+          name: "TooEarly",
+          type: "error",
+        },
+        {
+          inputs: [
+            {
+              internalType: "address",
+              name: "to",
+              type: "address",
+            },
+            {
+              internalType: "uint256",
+              name: "amount",
+              type: "uint256",
+            },
+          ],
+          name: "WithdrawTransferFailed",
+          type: "error",
         },
         {
           anonymous: false,
@@ -67,6 +114,19 @@ const deployedContracts = {
         },
         {
           inputs: [],
+          name: "deadline",
+          outputs: [
+            {
+              internalType: "uint256",
+              name: "",
+              type: "uint256",
+            },
+          ],
+          stateMutability: "view",
+          type: "function",
+        },
+        {
+          inputs: [],
           name: "execute",
           outputs: [],
           stateMutability: "nonpayable",
@@ -80,6 +140,32 @@ const deployedContracts = {
               internalType: "contract FundingRecipient",
               name: "",
               type: "address",
+            },
+          ],
+          stateMutability: "view",
+          type: "function",
+        },
+        {
+          inputs: [],
+          name: "openToWithdraw",
+          outputs: [
+            {
+              internalType: "bool",
+              name: "",
+              type: "bool",
+            },
+          ],
+          stateMutability: "view",
+          type: "function",
+        },
+        {
+          inputs: [],
+          name: "threshold",
+          outputs: [
+            {
+              internalType: "uint256",
+              name: "",
+              type: "uint256",
             },
           ],
           stateMutability: "view",
@@ -111,10 +197,10 @@ const deployedContracts = {
         },
       ],
       inheritedFunctions: {},
-      deployedOnBlock: 1456,
+      deployedOnBlock: 7078,
     },
     FundingRecipient: {
-      address: "0x5fbdb2315678afecb367f032d93f642f64180aa3",
+      address: "0x610178da211fef7d417bc0e6fed39f05609ad788",
       abi: [
         {
           inputs: [],
@@ -138,7 +224,7 @@ const deployedContracts = {
         },
       ],
       inheritedFunctions: {},
-      deployedOnBlock: 116,
+      deployedOnBlock: 7077,
     },
   },
 } as const;

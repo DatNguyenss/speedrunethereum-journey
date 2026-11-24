@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import { ETHToPrice } from "./EthToPrice";
 import { Address } from "@scaffold-ui/components";
 import { useWatchBalance } from "@scaffold-ui/hooks";
@@ -11,6 +12,9 @@ import { useTargetNetwork } from "~~/hooks/scaffold-eth/useTargetNetwork";
 
 export const ContributeContractInteraction = ({ address }: { address?: string }) => {
   const { address: connectedAddress } = useAccount();
+  const [contributionAmount, setContributionAmount] = useState("0.01");
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const validAmount = /^\d+(\.\d{1,18})?$/.test(contributionAmount) && parseEther(contributionAmount) > 0n;
 
   const { data: crowdFundContract } = useDeployedContractInfo({ contractName: "CrowdFund" });
   const { data: fundingRecipientContract } = useDeployedContractInfo({ contractName: "FundingRecipient" });
@@ -45,6 +49,12 @@ export const ContributeContractInteraction = ({ address }: { address?: string })
     watch: true,
   });
 
+  const { data: openToWithdraw } = useScaffoldReadContract({
+    contractName: "CrowdFund",
+    functionName: "openToWithdraw",
+    watch: true,
+  });
+
   const { writeContractAsync } = useScaffoldWriteContract({ contractName: "CrowdFund" });
 
   return (
@@ -75,7 +85,9 @@ export const ContributeContractInteraction = ({ address }: { address?: string })
         <div className="flex items-start justify-around w-full">
           <div className="flex flex-col items-center justify-center w-1/2">
             <p className="block text-xl mt-0 mb-1 font-semibold">Time Left</p>
-            <p className="m-0 p-0">{timeLeft ? `${humanizeDuration(Number(timeLeft) * 1000)}` : "DONE"}</p>
+            <p className="m-0 p-0">
+              {timeLeft === undefined ? "Loading…" : timeLeft > 0n ? humanizeDuration(Number(timeLeft) * 1000) : "DONE"}
+            </p>
           </div>
 
           <div className="flex flex-col items-center w-1/2">
@@ -99,11 +111,15 @@ export const ContributeContractInteraction = ({ address }: { address?: string })
           <div className="flex space-x-7">
             <button
               className="btn btn-primary uppercase"
+              disabled={!connectedAddress || isSubmitting || timeLeft !== 0n || isFundingCompleted || openToWithdraw}
               onClick={async () => {
+                setIsSubmitting(true);
                 try {
                   await writeContractAsync({ functionName: "execute" });
                 } catch (err) {
                   console.error("Error calling execute function", err);
+                } finally {
+                  setIsSubmitting(false);
                 }
               }}
             >
@@ -112,11 +128,15 @@ export const ContributeContractInteraction = ({ address }: { address?: string })
 
             <button
               className="btn btn-primary uppercase"
+              disabled={!connectedAddress || isSubmitting || !openToWithdraw || !myContribution || isFundingCompleted}
               onClick={async () => {
+                setIsSubmitting(true);
                 try {
                   await writeContractAsync({ functionName: "withdraw" });
                 } catch (err) {
                   console.error("Error calling withdraw function", err);
+                } finally {
+                  setIsSubmitting(false);
                 }
               }}
             >
@@ -124,18 +144,42 @@ export const ContributeContractInteraction = ({ address }: { address?: string })
             </button>
           </div>
 
+          <label className="flex flex-col gap-2">
+            <span>Contribution (ETH)</span>
+            <input
+              className="input input-bordered w-full"
+              type="text"
+              inputMode="decimal"
+              value={contributionAmount}
+              onChange={event => setContributionAmount(event.target.value)}
+              disabled={isSubmitting}
+            />
+          </label>
           <button
             className="btn btn-primary uppercase"
+            disabled={
+              !connectedAddress ||
+              isSubmitting ||
+              !validAmount ||
+              timeLeft === undefined ||
+              timeLeft === 0n ||
+              isFundingCompleted ||
+              openToWithdraw
+            }
             onClick={async () => {
+              setIsSubmitting(true);
               try {
-                await writeContractAsync({ functionName: "contribute", value: parseEther("0.5") });
+                await writeContractAsync({ functionName: "contribute", value: parseEther(contributionAmount) });
               } catch (err) {
                 console.error("Error calling contribute function", err);
+              } finally {
+                setIsSubmitting(false);
               }
             }}
           >
-            🤝 Contribute 0.5 ether!
+            🤝 Contribute ETH
           </button>
+          {openToWithdraw && <p className="m-0">Goal not reached. Contributors can withdraw their ETH.</p>}
         </div>
       </div>
     </div>

@@ -354,6 +354,64 @@ describe("🚩 Challenge: 📣 Crowdfunding App", function () {
       });
     });
 
+    describe("Funding lifecycle protections", function () {
+      beforeEach(async function () {
+        await deployContracts();
+      });
+
+      const reachDeadline = async () => {
+        await provider.request({
+          method: "evm_setNextBlockTimestamp",
+          params: [Number(await crowdFundContract.deadline())],
+        });
+        await provider.request({ method: "evm_mine" });
+      };
+
+      it("Rejects contributions at the deadline, including direct ETH transfers", async function () {
+        const [owner] = await ethers.getSigners();
+        await reachDeadline();
+        await expect(crowdFundContract.contribute({ value: 1n })).to.be.revertedWithCustomError(
+          crowdFundContract,
+          "FundingClosed",
+        );
+        await expect(
+          owner.sendTransaction({ to: await crowdFundContract.getAddress(), value: 1n }),
+        ).to.be.revertedWithCustomError(crowdFundContract, "FundingClosed");
+        expect(await crowdFundContract.timeLeft()).to.equal(0n);
+      });
+
+      it("Rejects actions after successful funding", async function () {
+        const [owner] = await ethers.getSigners();
+        await crowdFundContract.contribute({ value: ethers.parseEther("1") });
+        await reachDeadline();
+        await crowdFundContract.execute();
+        await expect(crowdFundContract.contribute({ value: 1n })).to.be.revertedWithCustomError(
+          crowdFundContract,
+          "FundingCompleted",
+        );
+        await expect(crowdFundContract.execute()).to.be.revertedWithCustomError(crowdFundContract, "FundingCompleted");
+        await expect(crowdFundContract.withdraw()).to.be.revertedWithCustomError(crowdFundContract, "FundingCompleted");
+        await expect(
+          owner.sendTransaction({ to: await crowdFundContract.getAddress(), value: 1n }),
+        ).to.be.revertedWithCustomError(crowdFundContract, "FundingCompleted");
+      });
+
+      it("Keeps refunds available after repeated execution of a failed campaign", async function () {
+        const [owner, contributor] = await ethers.getSigners();
+        await crowdFundContract.contribute({ value: ethers.parseEther("0.01") });
+        await crowdFundContract.connect(contributor).contribute({ value: ethers.parseEther("0.02") });
+        await reachDeadline();
+        await crowdFundContract.execute();
+        await crowdFundContract.execute();
+        await crowdFundContract.withdraw();
+        await crowdFundContract.connect(contributor).withdraw();
+        expect(await crowdFundContract.balances(owner.address)).to.equal(0n);
+        expect(await crowdFundContract.balances(contributor.address)).to.equal(0n);
+        expect(await ethers.provider.getBalance(await crowdFundContract.getAddress())).to.equal(0n);
+        expect(await fundingRecipient.completed()).to.equal(false);
+      });
+    });
+
     describe("Checkpoint 4: 💵 Receive Function / UX 🙎", function () {
       beforeEach(async function () {
         await deployContracts();

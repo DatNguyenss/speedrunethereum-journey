@@ -60,7 +60,28 @@ Khong can GitHub Actions hay Vercel token cho cach ket noi Git nay.
 
 Tai lieu: https://vercel.com/docs/monorepos va https://vercel.com/docs/monorepos/monorepo-faq
 
-## Git migration
+## Crowdfunding (challenge 1)
+
+Contract da hoan thien contribute/receive, deadline, execute va refund, kem bao ve sau khi hoan tat.
+Deadline: 30 giay tren local chain 31337, 24 gio tren testnet. Threshold: 1 ETH.
+Frontend cho phep nhap so ETH, mac dinh 0.01 ETH; khoa cac nut theo trang thai campaign.
+
+De dua challenge 1 len Sepolia, mo terminal trong `challenge-crowdfunding`:
+
+```sh
+yarn generate
+# Tu dat mat khau trong terminal, luu lai dia chi deployer va nap Sepolia ETH cho dia chi do.
+yarn deploy --network sepolia
+yarn verify --network sepolia
+```
+
+Khong can tao lai deployer neu da co. Sau khi deploy, commit va push file ABI duoc tao tu dong.
+Tao project Vercel rieng voi Root Directory `challenge-crowdfunding/packages/nextjs` va
+`NEXT_PUBLIC_TARGET_NETWORK=sepolia`; khong doi Root Directory cua project Tokenization.
+De submit challenge 1, dung URL Vercel moi va URL Etherscan cua **CrowdFund** tren Sepolia.
+Dia chi 31337 trong ABI chi danh cho local, khong dung de submit.
+
+## Git migration backup
 
 Source cua cac challenge duoc quan ly truc tiep boi repo nay, khong con gitlink/submodule.
 Lich su Git rieng truoc khi chuyen duoc giu local tai `.git/challenge-repositories-backup/`.
