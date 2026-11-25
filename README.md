@@ -8,6 +8,7 @@ Repo chung cho cac challenge, moi challenge giu Yarn workspace va lockfile rieng
 | Tokenization | sre-tokenization | `challenge-tokenization/packages/nextjs` |
 | Token Vendor | sre-token-vendor | `challenge-token-vendor/packages/nextjs` |
 | DEX (challenge 4) | sre-dex | `challenge-dex/packages/nextjs` |
+| Dice Game (challenge 3) | sre-dice-game | `challenge-dice-game/packages/nextjs` |
 
 ## Chay local
 
