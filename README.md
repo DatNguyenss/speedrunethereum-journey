@@ -9,7 +9,7 @@ Repo chung cho cac challenge, moi challenge giu Yarn workspace va lockfile rieng
 | Token Vendor | sre-token-vendor | `challenge-token-vendor/packages/nextjs` |
 | DEX (challenge 4) | sre-dex | `challenge-dex/packages/nextjs` |
 | Dice Game (challenge 3) | sre-dice-game | `challenge-dice-game/packages/nextjs` |
-| Oracles (challenge 5, chua publish) | chua tao | `challenge-oracles/packages/nextjs` |
+| Oracles (challenge 5) | sre-oracles | `challenge-oracles/packages/nextjs` |
 
 ## Chay local
 
@@ -42,7 +42,9 @@ Sau deploy co the kiem tra bytecode va lien ket bang
 `yarn workspace @se-2/hardhat node scripts/check-local-deployment.mjs`.
 
 Development mac dinh Hardhat, production mac dinh Sepolia; ghi de bang `NEXT_PUBLIC_TARGET_NETWORK`.
-Da deploy 5 contracts len Sepolia va kiem tra bytecode/lien ket qua RPC; chua publish Vercel hoac submit. Cac lenh deploy/verify testnet can
+Da deploy 5 contracts len Sepolia va kiem tra bytecode/lien ket qua RPC.
+Frontend: https://sre-oracles-steel.vercel.app/ (trang chu va ba trang oracle tra HTTP 200).
+Chua xac nhan giao dich qua vi tren frontend cong khai hoac submit. Lenh deploy testnet can
 mat khau deployer nhap truc tiep trong terminal. Giu nguyen cac quyen mo trong SimpleOracle/Decider
 theo skeleton bai hoc; ban demo nay chua phu hop de su dung cho tai san that.
 

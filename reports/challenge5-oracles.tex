@@ -101,8 +101,8 @@ Các gói Rocketh được ghim phiên bản tương thích cùng core 0.19.13 �
     \item \textbf{Checkpoint 3--6:} vòng đời optimistic, proposal/dispute, claim/refund, settlement và truy vấn trạng thái đã triển khai, có test pass.
     \item \textbf{Checkpoint 7:} đã phân tích trade-off về độ tin cậy, động lực kinh tế, độ trễ và quyền phân xử; cần chú ý các quyền mở phục vụ demo.
     \item \textbf{Checkpoint 8:} đã deploy Hardhat local và Sepolia; RPC xác nhận năm hợp đồng có bytecode và liên kết đúng. Chưa thực hiện vòng đời assertion bằng giao dịch trên Sepolia.
-    \item \textbf{Checkpoint 9:} đã chuẩn bị cấu hình Vercel và build; chưa công bố frontend URL.
-    \item \textbf{Checkpoint 10:} đã chạy verify Sepolia; công cụ báo Decider đã verified, OptimisticOracle đã gửi và đang chờ kết quả Etherscan. Chưa xác nhận verify đủ năm hợp đồng; chưa submit trên Speedrun Ethereum.
+    \item \textbf{Checkpoint 9:} đã công bố frontend tại \url{https://sre-oracles-steel.vercel.app/}; trang chủ và ba trang oracle trả HTTP 200. Chưa xác nhận thao tác ví trên bản công khai.
+    \item \textbf{Checkpoint 10:} Etherscan đã xác nhận cả năm hợp đồng Decider, OptimisticOracle, ORA, StakingOracle và WhitelistOracle verified. Lượt verify lại dùng khoảng cách request hai giây để tránh giới hạn tần suất API. Chưa submit trên Speedrun Ethereum.
     \item \textbf{Checkpoint 11:} đã phân tích giới hạn mô hình; chưa tích hợp feed Chainlink/Pyth hoặc cơ chế phân xử UMA thật.
 \end{itemize}
 
@@ -116,4 +116,4 @@ Người dùng đã deploy lên Sepolia và ABI frontend được sinh lại t�
 \end{itemize}
 Cả năm có bytecode; ORA.owner là StakingOracle, StakingOracle trỏ đúng ORA và OptimisticOracle/Decider trỏ về nhau. Tại thời điểm đọc, WhitelistOracle chưa có nguồn (sourceCount bằng 0), OptimisticOracle có nextAssertionId bằng 1. Script chỉ seed 10 nguồn trên local, nên whitelist rỗng trên Sepolia đúng với cấu hình hiện tại.
 
-Còn triển khai frontend công khai, thao tác assertion/proposal/dispute/settlement trên testnet và submit. Chưa thao tác ví trên UI, chạy bot dài hạn hoặc mô phỏng thông đồng/tấn công kinh tế.
+Frontend đã công bố tại \url{https://sre-oracles-steel.vercel.app/}. Kiểm tra HTTP xác nhận trang chủ, \path{/whitelist}, \path{/staking} và \path{/optimistic} đều trả mã 200 và nội dung Next.js. Điều này xác nhận khả năng truy cập, chưa chứng minh đọc RPC và giao dịch qua ví hoạt động đúng. Còn thao tác assertion/proposal/dispute/settlement trên testnet và submit. Chưa thao tác ví trên UI, chạy bot dài hạn hoặc mô phỏng thông đồng/tấn công kinh tế.
