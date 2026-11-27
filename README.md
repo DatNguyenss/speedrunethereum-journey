@@ -9,6 +9,7 @@ Repo chung cho cac challenge, moi challenge giu Yarn workspace va lockfile rieng
 | Token Vendor | sre-token-vendor | `challenge-token-vendor/packages/nextjs` |
 | DEX (challenge 4) | sre-dex | `challenge-dex/packages/nextjs` |
 | Dice Game (challenge 3) | sre-dice-game | `challenge-dice-game/packages/nextjs` |
+| Oracles (challenge 5, chua publish) | chua tao | `challenge-oracles/packages/nextjs` |
 
 ## Chay local
 
@@ -26,6 +27,24 @@ yarn start
 `NEXT_PUBLIC_TARGET_NETWORK=hardhat` trong `packages/nextjs/.env.local` de dung chain local.
 Tokenization giu mac dinh Sepolia; hai challenge con lai dung Hardhat khi development.
 Production build cua ca ba mac dinh dung Sepolia. Co the ghi de bang bien tren.
+
+## Oracles (challenge 5)
+
+Da trien khai WhitelistOracle, StakingOracle va OptimisticOracle trong `challenge-oracles`.
+Bao cao: [reports/challenge5-oracles.tex](reports/challenge5-oracles.tex).
+Bo test gom 81 ca goc va 7 ca bien bo sung. Chay `yarn test` trong thu muc challenge.
+
+Chay `yarn chain`, `yarn deploy`, `yarn start` o ba terminal; truy cap
+`http://localhost:3000/whitelist`, `/staking`, `/optimistic`.
+De seed local khong phu thuoc mainnet RPC, dat `ORACLE_INITIAL_PRICE_WEI=2600000000000000000000`
+truoc khi `yarn deploy` (gia mo phong 2600, khong phai gia thi truong).
+Sau deploy co the kiem tra bytecode va lien ket bang
+`yarn workspace @se-2/hardhat node scripts/check-local-deployment.mjs`.
+
+Development mac dinh Hardhat, production mac dinh Sepolia; ghi de bang `NEXT_PUBLIC_TARGET_NETWORK`.
+Da deploy 5 contracts len Sepolia va kiem tra bytecode/lien ket qua RPC; chua publish Vercel hoac submit. Cac lenh deploy/verify testnet can
+mat khau deployer nhap truc tiep trong terminal. Giu nguyen cac quyen mo trong SimpleOracle/Decider
+theo skeleton bai hoc; ban demo nay chua phu hop de su dung cho tai san that.
 
 ## Deploy contracts truoc khi deploy frontend
 

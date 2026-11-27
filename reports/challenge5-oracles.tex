@@ -1,0 +1,119 @@
+\section{Challenge 5: Oracles -- Đưa dữ liệu ngoài chuỗi vào hợp đồng}
+\label{sec:challenge5-oracles}
+% Ghép bằng \input{reports/challenge5-oracles} tùy cấu trúc tài liệu chính.
+% Tài liệu chính cần hỗ trợ tiếng Việt và có \usepackage{url}.
+
+\subsection{Mục tiêu và cấu trúc ứng dụng}
+
+Challenge triển khai ba mô hình oracle: WhitelistOracle tổng hợp các nguồn được quản lý; StakingOracle yêu cầu người báo giá đặt cọc ORA; OptimisticOracle xử lý câu hỏi đúng/sai qua đề xuất và tranh chấp. Oracle là cầu nối dữ liệu, nhưng hợp đồng không tự kiểm chứng sự thật ngoài chuỗi. Mức tin cậy phụ thuộc người cung cấp, cơ chế đồng thuận và bên phân xử.
+
+Mã nguồn nằm trong \path{challenge-oracles}. Backend dùng Hardhat 3, Solidity 0.8.30; frontend Next.js có ba trang \path{/whitelist}, \path{/staking}, \path{/optimistic}. Các hợp đồng được cung cấp sẵn gồm SimpleOracle, ORA, Decider và thư viện StatisticsUtils được giữ nguyên. Phần thực hiện bổ sung logic cho ba oracle chính, sửa deploy lặp lại, thêm kiểm thử biên và cấu hình frontend để chuẩn bị triển khai công khai.
+
+Đề bài tham chiếu: \url{https://speedrunethereum.com/challenge/oracles}. Báo cáo ghi nhận kết quả chạy trong workspace ngày 27/11/2026; bộ test chạy trên Hardhat local, các deployment Sepolia dưới đây đã được kiểm tra qua RPC.
+
+\subsection{Whitelist Oracle: tổng hợp bằng trung vị}
+
+SimpleOracle lưu price và timestamp. WhitelistOracle tạo các SimpleOracle qua addOracle, lưu vào mảng và phát OracleAdded. RemoveOracle kiểm tra chỉ số, thay phần tử bị xóa bằng phần tử cuối rồi pop, nên không giữ nguyên thứ tự.
+
+GetPrice chỉ nhận nguồn có độ tuổi thỏa mãn:
+\[
+    t_{\mathrm{now}}-t_{\mathrm{updated}}<24\ \mathrm{giây}.
+\]
+Nguồn vừa đủ 24 giây đã bị loại. Các giá hợp lệ được sao chép vào mảng có đúng kích thước, sắp xếp bằng StatisticsUtils rồi lấy trung vị. Với số phần tử chẵn, thư viện lấy trung bình nguyên của hai giá giữa. Ví dụ ba nguồn báo 1000, 1020 và 9000 thì trung vị là 1020; một giá ngoại lai chưa đủ làm kết quả đi theo giá đó.
+
+Nếu không có nguồn hoặc không còn dữ liệu mới, GetPrice revert NoOraclesAvailable. GetActiveOracleNodes trả địa chỉ các hợp đồng SimpleOracle còn mới; đây không phải danh sách ví chủ sở hữu. GetOracleCount được bổ sung để script biết số nguồn hiện có khi chạy lại.
+
+\textbf{Giới hạn của bản thực hành:} modifier onlyOwner trong WhitelistOracle và SimpleOracle đang được vô hiệu hóa theo skeleton để thuận tiện mô phỏng. Vì vậy người gọi bất kỳ có thể thêm/xóa nguồn hoặc sửa giá; trường owner không đồng nghĩa với kiểm soát truy cập đang có hiệu lực. Bộ test pass không biến phiên bản này thành oracle có whitelist an toàn cho production.
+
+\subsection{Staking Oracle: đặt cọc, báo giá và phạt}
+
+ORA có 18 decimals, hỗ trợ mua token với tỷ lệ 1 ETH đổi 200 ORA. Script chuyển quyền sở hữu ORA sang StakingOracle để oracle mint phần thưởng. Một node cần approve rồi registerNode với ít nhất 100 ORA. AddStake tăng số token đặt cọc; contract kiểm tra kết quả transferFrom.
+
+Thời gian báo cáo được chia theo số block:
+\[
+    b=\left\lfloor\frac{\mathrm{block.number}}{24}\right\rfloor+1.
+\]
+Mỗi node đang active được báo giá dương một lần trong mỗi bucket và phải còn effective stake tối thiểu. ReportPrice giữ reporters và prices ở cùng chỉ số, cập nhật lastReportedBucket và reportCount, rồi phát PriceReported. Không yêu cầu bucket trước phải có trung vị mới được báo giá tiếp.
+
+Effective stake trừ 1 ORA cho mỗi bucket đã kết thúc mà node bỏ báo cáo. Nếu đăng ký ở bucket $b_0$, đang ở $b$ và đã có $r_c$ báo cáo thuộc các bucket đã hoàn tất:
+\[
+    S_{\mathrm{effective}}=\max\left(0,
+    S-\max(0,b-b_0-r_c)\cdot 1\ \mathrm{ORA}\right).
+\]
+Báo cáo trong bucket hiện tại không được tính vào $r_c$, tránh dùng nó bù một lần bỏ báo cáo trong quá khứ. Đây là mức phạt tính khi đọc và khi rút; không tự chuyển token ra khỏi contract theo mỗi block. Node đặt đúng 100 ORA rồi bỏ một bucket sẽ thiếu điều kiện báo giá cho đến khi nạp thêm stake.
+
+Ai cũng có thể gọi recordBucketMedian cho bucket quá khứ. Hàm chỉ sắp xếp bản sao trong memory, giữ nguyên liên kết chỉ số giữa reporters và prices trong storage. Bucket rỗng bị StatisticsUtils từ chối; bucket đã ghi trung vị không được ghi lại. GetLatestPrice đọc bucket ngay trước bucket hiện tại, không tìm ngược tùy ý đến dữ liệu cũ nhất còn tồn tại.
+
+SlashNode yêu cầu bucket quá khứ có trung vị, node còn active, các chỉ số khớp và chưa bị slash cho cùng lỗi. Báo cáo bị phạt khi lệch \emph{lớn hơn} 10\% so với trung vị; đúng 10\% không bị phạt. Mức phạt tối đa 100 ORA, người gọi nhận 10\% số thực sự bị trừ. Phần còn lại nằm trong contract, không tự đốt. Khi stakedAmount về 0, node bị loại khỏi mảng active bằng swap-and-pop.
+
+ExitNode cho rút effective stake sau thời gian chờ hai bucket tính từ lastReportedBucket. ClaimReward mint 1 ORA cho mỗi báo cáo chưa nhận thưởng; cả node đã thoát cũng có thể gọi. Khi đăng ký lại, phần thưởng còn lại từ lượt đăng ký cũ được chi trả trước khi đặt lại các bộ đếm, tránh mất quyền lợi đã tích lũy.
+
+\textbf{Giới hạn:} trung vị tính theo số báo cáo, không trọng số theo lượng stake, và không có quorum tối thiểu. Một node cũng có thể tạo ra trung vị. Sai lệch so với số đông không chứng minh sai sự thật; nhóm node thông đồng vẫn có thể thao túng. Phần thưởng dựa vào số lần báo cáo, không chờ xác minh độ chính xác. Việc phạt còn phụ thuộc có người chủ động ghi trung vị và slash trước khi node thoát; lịch sử báo cáo theo địa chỉ cũng chưa được tách thành từng phiên đăng ký độc lập.
+
+\subsection{Optimistic Oracle: vòng đời một assertion}
+
+AssertEvent tạo câu hỏi có kết quả boolean và nhận reward bằng ETH, với bond bằng hai lần reward. StartTime bằng 0 được hiểu là thời điểm hiện tại; endTime bằng 0 được thay bằng startTime cộng tối thiểu ba phút. Hàm từ chối reward bằng 0, startTime trong quá khứ hoặc khoảng thời gian quá ngắn.
+
+ProposeOutcome chỉ nhận một đề xuất trong khoảng thời gian cho phép và yêu cầu đúng bond. Sau khi đề xuất, endTime được cập nhật thành thời hạn tranh chấp mới: thời điểm đề xuất cộng ba phút. DisputeOutcome yêu cầu một bond cùng mức và chỉ cho phép một người tranh chấp. Ở đúng deadline vẫn được dispute; từ giây tiếp theo mới được nhận thưởng không tranh chấp.
+
+Với reward $R$, các dòng tiền là:
+\begin{itemize}
+    \item Không có đề xuất và đã hết hạn: hoàn $R$ cho asserter.
+    \item Có đề xuất, không tranh chấp: proposer nhận $R+2R=3R$.
+    \item Có tranh chấp: tổng escrow là $R+2R+2R=5R$. Sau phân xử, winner nhận $3R$, decider nhận phí $2R$.
+\end{itemize}
+Người thắng là proposer nếu proposedOutcome trùng resolvedOutcome; ngược lại là disputer. Ai cũng có thể kích hoạt claim, nhưng ETH luôn gửi đến người hưởng đã lưu, không gửi đến người gọi thay.
+
+Các trạng thái gồm Invalid, Asserted, Proposed, Disputed, Settled và Expired. Assertion không tranh chấp được xem là Settled khi hết thời hạn, dù chưa claim. Một assertion có dispute chỉ Settled khi decider xác định winner. Assertion hết hạn mà chưa có đề xuất là Expired, không có kết quả boolean hợp lệ để trả về.
+
+Claim đặt claimed trước các lệnh call gửi ETH; claim lặp bị từ chối. Nếu winner từ chối ETH, giao dịch revert cả phí đã gửi cho decider và cập nhật claimed. Settled không đồng nghĩa đã chuyển tiền: settlement và claim là hai thao tác khác nhau.
+
+\textbf{Giới hạn quan trọng:} OptimisticOracle chỉ cho địa chỉ decider gọi settleAssertion, nhưng Decider được cung cấp sẵn lại cho mọi người gọi settleDispute. Vì vậy bản demo cho phép bất kỳ ví nào kích hoạt quyết định đúng/sai thông qua hợp đồng trung gian. Nó chưa phải cơ chế phân xử độc lập an toàn. Owner còn có quyền đổi decider; nếu decider không phân xử hoặc không nhận ETH thì quá trình nhận thưởng có thể bị kẹt. Câu hỏi tự do cũng cần tiêu chí và nguồn kiểm chứng rõ ràng ngoài chuỗi.
+
+\subsection{Deploy, frontend và cách chạy}
+
+Script local tạo tối thiểu 10 SimpleOracle, nạp giá ban đầu và sinh ABI vào deployedContracts.ts. Chạy lại tái sử dụng các nguồn đã có thay vì thêm 10 nguồn mới, đồng thời làm mới giá seed. Có thể đặt ORACLE\_INITIAL\_PRICE\_WEI để dùng dữ liệu mô phỏng xác định; lần kiểm chứng dùng giá $2600\cdot10^{18}$, không tuyên bố đây là giá thị trường.
+
+Script OptimisticOracle được sửa theo thứ tự: deploy oracle với deployer làm decider tạm, deploy Decider rồi gọi setDecider bằng địa chỉ thực tế. Cách này bỏ phụ thuộc nonce dự đoán và chạy lại được khi các deployment đã tồn tại. Giai đoạn nối hai hợp đồng vẫn là nhiều giao dịch, chưa nguyên tử.
+
+Frontend mặc định Hardhat khi development và Sepolia khi production; có thể ghi đè bằng NEXT\_PUBLIC\_TARGET\_NETWORK. Build kiểm tra TypeScript, không bỏ qua lỗi kiểu. Cấu hình Vercel cài Yarn workspace từ root challenge và build frontend ở \path{packages/nextjs}. Để chạy local, mở các terminal trong \path{challenge-oracles}:
+\begin{verbatim}
+yarn chain
+yarn deploy
+yarn start
+\end{verbatim}
+Lần lượt truy cập \path{http://localhost:3000/whitelist}, \path{/staking} và \path{/optimistic}. Chạy \texttt{yarn test} để kiểm tra toàn bộ hợp đồng. Có thể xác nhận bytecode và liên kết deployment local bằng:
+\begin{verbatim}
+yarn workspace @se-2/hardhat node scripts/check-local-deployment.mjs
+\end{verbatim}
+
+Các gói Rocketh được ghim phiên bản tương thích cùng core 0.19.13 để khắc phục lỗi kiểu của công cụ deploy; Yarn lockfile lưu lại bộ phiên bản. Đây là sửa môi trường công cụ, không thay cơ chế đồng thuận của oracle.
+
+\subsection{Kiểm thử và đối chiếu checkpoint}
+
+\texttt{yarn test} đã chạy thành công \textbf{88/88 ca}: 14 Whitelist, 32 Staking, 35 Optimistic và 7 ca biên bổ sung. Các ca bổ sung kiểm tra chi trả qua người gọi thứ ba, số ETH winner/decider nhận, hoàn tác khi winner từ chối ETH, biên thời hạn dispute, chặn settlement lặp, ID/time không hợp lệ, dữ liệu vừa đủ 24 giây và giữ thưởng khi đăng ký lại.
+
+Đã deploy local, chạy deploy lại và kiểm tra có đúng 10 nguồn, ORA.owner là StakingOracle, StakingOracle trỏ đúng ORA, OptimisticOracle/Decider trỏ về nhau và năm hợp đồng có bytecode. Frontend đã build thành công với TypeScript được bật; ba trang oracle trả HTTP 200 khi chạy local. Kiểm tra kiểu và lint của Hardhat đã qua. Lint frontend còn bảy cảnh báo API deprecated từ template. Không coi các kiểm tra này là một cuộc kiểm toán bảo mật.
+
+\begin{itemize}
+    \item \textbf{Checkpoint 0--1:} môi trường hoạt động, WhitelistOracle hoàn thiện và có test pass.
+    \item \textbf{Checkpoint 2:} stake, báo giá, ghi trung vị, reward, slash và exit đã triển khai, có test pass.
+    \item \textbf{Checkpoint 3--6:} vòng đời optimistic, proposal/dispute, claim/refund, settlement và truy vấn trạng thái đã triển khai, có test pass.
+    \item \textbf{Checkpoint 7:} đã phân tích trade-off về độ tin cậy, động lực kinh tế, độ trễ và quyền phân xử; cần chú ý các quyền mở phục vụ demo.
+    \item \textbf{Checkpoint 8:} đã deploy Hardhat local và Sepolia; RPC xác nhận năm hợp đồng có bytecode và liên kết đúng. Chưa thực hiện vòng đời assertion bằng giao dịch trên Sepolia.
+    \item \textbf{Checkpoint 9:} đã chuẩn bị cấu hình Vercel và build; chưa công bố frontend URL.
+    \item \textbf{Checkpoint 10:} đã chạy verify Sepolia; công cụ báo Decider đã verified, OptimisticOracle đã gửi và đang chờ kết quả Etherscan. Chưa xác nhận verify đủ năm hợp đồng; chưa submit trên Speedrun Ethereum.
+    \item \textbf{Checkpoint 11:} đã phân tích giới hạn mô hình; chưa tích hợp feed Chainlink/Pyth hoặc cơ chế phân xử UMA thật.
+\end{itemize}
+
+Người dùng đã deploy lên Sepolia và ABI frontend được sinh lại tự động. Kiểm tra RPC xác nhận các địa chỉ:
+\begin{itemize}
+    \item WhitelistOracle: \path{0x732680c5f164911f8c0a9c2ca55ecc7ae4356862}.
+    \item ORA: \path{0x01974f847013c331f4452259d5e2f0ed15800899}.
+    \item StakingOracle: \path{0xa66fe4b179239041a59b92018181b195cf756a42}.
+    \item OptimisticOracle: \path{0x5ec060111337764126a4d2aa657731aded283417}.
+    \item Decider: \path{0x4490f62780aaf30ae08d2c40c39b382aa46a6a1f}.
+\end{itemize}
+Cả năm có bytecode; ORA.owner là StakingOracle, StakingOracle trỏ đúng ORA và OptimisticOracle/Decider trỏ về nhau. Tại thời điểm đọc, WhitelistOracle chưa có nguồn (sourceCount bằng 0), OptimisticOracle có nextAssertionId bằng 1. Script chỉ seed 10 nguồn trên local, nên whitelist rỗng trên Sepolia đúng với cấu hình hiện tại.
+
+Còn triển khai frontend công khai, thao tác assertion/proposal/dispute/settlement trên testnet và submit. Chưa thao tác ví trên UI, chạy bot dài hạn hoặc mô phỏng thông đồng/tấn công kinh tế.
